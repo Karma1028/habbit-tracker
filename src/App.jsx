@@ -42,12 +42,11 @@ import {
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
-  signInAnonymously,
   onAuthStateChanged,
   signOut,
   signInWithCustomToken,
-  GoogleAuthProvider, // Added for Google Auth
-  signInWithPopup     // Added for Google Auth
+  GoogleAuthProvider,
+  signInWithPopup
 } from "firebase/auth";
 import {
   getFirestore,
@@ -57,6 +56,12 @@ import {
 } from "firebase/firestore";
 
 import { firebaseConfig, appId as importedAppId } from './firebaseConfig';
+
+// --- FIREBASE INITIALIZATION (Once) ---
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = importedAppId;
 
 // --- CONSTANTS ---
 const GREEN_PRIMARY = "#10b981";
@@ -113,18 +118,9 @@ export default function HabitTracker() {
 
   // --- FIREBASE INIT & AUTH ---
   useEffect(() => {
-    // const firebaseConfig = JSON.parse(__firebase_config);
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const appId = importedAppId; // typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
     const initAuth = async () => {
-      // if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
       if (typeof window !== 'undefined' && window.__initial_auth_token) {
         await signInWithCustomToken(auth, window.__initial_auth_token);
-      } else {
-        // Waiting for user to click login
       }
     };
     initAuth();
@@ -161,28 +157,20 @@ export default function HabitTracker() {
   // --- ACTIONS ---
 
   const handleLogin = async () => {
-    // const firebaseConfig = JSON.parse(__firebase_config);
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
     try {
-      // --- OPTION 1: ANONYMOUS (Enabled for Preview) ---
-      // await signInAnonymously(auth);
-
-      // --- OPTION 2: GOOGLE LOGIN (Uncomment for Production) ---
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-
     } catch (error) {
       console.error("Login failed", error);
-      alert("Login failed. Check console for details.");
+      if (error.code === 'auth/popup-blocked') {
+        alert("Popup was blocked. Please allow popups for this site and try again.");
+      } else {
+        alert("Login failed. Please try again.");
+      }
     }
   };
 
   const handleLogout = async () => {
-    // const firebaseConfig = JSON.parse(__firebase_config);
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     await signOut(auth);
     setHabits(initialHabits);
     setMetrics({});
@@ -190,11 +178,6 @@ export default function HabitTracker() {
 
   const saveToCloud = async (newHabits, newMetrics) => {
     if (!user) return;
-    // const firebaseConfig = JSON.parse(__firebase_config);
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const appId = importedAppId; // typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
     try {
       await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'userHabits'), {
         habits: newHabits !== undefined ? newHabits : habits,
